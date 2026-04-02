@@ -110,6 +110,11 @@ const POSTS: Post[] = [
   { type: "reddit", meta: "r/webdev · u/done", text: "switched providers. their docs actually work.", x: 1560, y: 892, rotation: 0.5, size: "md", highlight: -1 },
 ];
 
+// Precompute entrance order: sort by y so posts load top-to-bottom
+const ENTRANCE_ORDER = POSTS.map((p, i) => ({ i, y: p.y }))
+  .sort((a, b) => a.y - b.y)
+  .reduce<number[]>((acc, { i }, rank) => { acc[i] = rank; return acc; }, []);
+
 const PROBLEM_LINES = [
   "Your docs are falling behind your product.",
   "Support tickets are eating your head.",
@@ -263,8 +268,8 @@ export const ManiculePromo: React.FC<{
       {s1Active && (
         <AbsoluteFill style={{ opacity: s1Fade }}>
           {POSTS.map((p, i) => {
-            // Staggered entrance: each post pops in one by one
-            const enterFrame = i * 1;
+            // Staggered entrance: sorted by y so posts load top-to-bottom
+            const enterFrame = ENTRANCE_ORDER[i] * 1;
             const postIn = interpolate(frame, [enterFrame, enterFrame + 4], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
             const postScale = interpolate(frame, [enterFrame, enterFrame + 4], [0.9, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.quad) });
 
@@ -340,8 +345,25 @@ export const ManiculePromo: React.FC<{
           </div>
           {frame >= s4Start + 65 && (
             <div style={{ position: "absolute", top: 30, left: 40, right: 40, opacity: beforeSpr, transform: `translateY(${interpolate(beforeSpr, [0, 1], [25, 0])}px)` }}>
-              <div style={{ fontFamily: MONO, fontSize: 13, color: ssFlip < 0.5 ? C.orange : C.green, textTransform: "uppercase", letterSpacing: 2, marginBottom: 10, fontWeight: 600 }}>{ssFlip < 0.5 ? "[ BEFORE ]  —  SEPTEMBER" : "[ AFTER ]  —  OCTOBER  (WITH MANICULE)"}</div>
-              <div><div style={{ borderRadius: 10, overflow: "hidden", border: `1px solid ${C.whiteA10}` }}><Img src={staticFile(ssFlip < 0.5 ? "before.png" : "after.png")} style={{ width: "100%", height: "auto", display: "block" }} /></div><div style={{ height: 6, backgroundColor: C.orange, borderRadius: "0 0 10px 10px", marginTop: -1 }} /></div>
+              {/* Labels — before fades out, after fades in */}
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                <div style={{ fontFamily: MONO, fontSize: 13, color: C.orange, textTransform: "uppercase", letterSpacing: 2, fontWeight: 600, opacity: interpolate(ssFlip, [0, 0.3], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) }}>[ BEFORE ]  —  SEPTEMBER</div>
+                <div style={{ fontFamily: MONO, fontSize: 13, color: C.green, textTransform: "uppercase", letterSpacing: 2, fontWeight: 600, opacity: interpolate(ssFlip, [0.7, 1], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) }}>[ AFTER ]  —  OCTOBER  (WITH MANICULE)</div>
+              </div>
+              {/* Screenshots — horizontal wipe reveal */}
+              <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: `1px solid ${C.whiteA10}` }}>
+                {/* Before — always visible underneath */}
+                <Img src={staticFile("before.png")} style={{ width: "100%", height: "auto", display: "block" }} />
+                {/* After — clips in from right via inset */}
+                <div style={{ position: "absolute", inset: 0, clipPath: `inset(0 ${(1 - ssFlip) * 100}% 0 0)` }}>
+                  <Img src={staticFile("after.png")} style={{ width: "100%", height: "auto", display: "block" }} />
+                </div>
+                {/* Wipe edge line */}
+                {ssFlip > 0.01 && ssFlip < 0.99 && (
+                  <div style={{ position: "absolute", top: 0, bottom: 0, left: `${ssFlip * 100}%`, width: 3, backgroundColor: C.orange, boxShadow: `0 0 12px ${C.orange}`, zIndex: 2 }} />
+                )}
+              </div>
+              <div style={{ height: 6, backgroundColor: ssFlip < 0.5 ? C.orange : C.green, borderRadius: "0 0 10px 10px", marginTop: -1, transition: "background-color 0.3s" }} />
             </div>
           )}
           {frame >= s4Start + 145 && (
@@ -366,7 +388,7 @@ export const ManiculePromo: React.FC<{
           <CornerMarkers />
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: humansOp }}>
             <div style={{ maxWidth: 1100, textAlign: "center" }}>
-              <div style={{ fontSize: 52, fontWeight: 600, color: C.white, lineHeight: 1.15, letterSpacing: -2 }}>humans in the loop —<br />because docs shouldn&apos;t sound<br />like <span style={{ color: C.orange }}>AI-generated bullshit.</span></div>
+              <div style={{ fontSize: 52, fontWeight: 600, color: C.white, lineHeight: 1.15, letterSpacing: -2 }}>humans in the loop.<br />because docs shouldn&apos;t sound<br />like <span style={{ color: C.orange }}>AI-generated bullshit.</span></div>
             </div>
           </div>
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 28, opacity: fastOp }}>
