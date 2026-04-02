@@ -123,6 +123,41 @@ const PROBLEM_LINES = [
 
 
 // ============================================================
+// EDITOR CURSORS — for "humans in the loop" slide
+// ============================================================
+const EDITORS = [
+  { name: "Naman", color: "#3b82f6" },
+  { name: "Shreyans", color: "#8b5cf6" },
+  { name: "Ritik", color: "#ec4899" },
+  { name: "Kunal", color: "#f59e0b" },
+  { name: "Adam", color: "#10b981" },
+  { name: "Souptik", color: "#06b6d4" },
+];
+
+// Each cursor has a unique wandering path defined as keyframes [frame_offset, x, y]
+// They move around the edges of the slide as if reviewing
+const CURSOR_PATHS: [number, number, number][][] = [
+  [[0, 120, 80], [30, 180, 150], [60, 250, 90], [90, 320, 180], [120, 200, 120]],
+  [[0, 1700, 100], [25, 1620, 200], [55, 1750, 280], [85, 1650, 150], [120, 1720, 250]],
+  [[0, 100, 850], [35, 200, 780], [65, 150, 900], [95, 280, 830], [120, 180, 870]],
+  [[0, 1650, 800], [28, 1720, 880], [58, 1600, 820], [90, 1700, 900], [120, 1650, 850]],
+  [[0, 800, 60], [40, 900, 120], [75, 1050, 80], [100, 950, 150], [120, 870, 90]],
+  [[0, 600, 900], [32, 700, 840], [60, 550, 880], [95, 680, 920], [120, 620, 860]],
+];
+
+// Placeholder shiny text bars — scattered around edges like a doc being reviewed
+const TEXT_BARS = [
+  { x: 60, y: 100, w: 280, lines: 4 },
+  { x: 60, y: 320, w: 220, lines: 3 },
+  { x: 60, y: 780, w: 300, lines: 5 },
+  { x: 1540, y: 100, w: 320, lines: 4 },
+  { x: 1540, y: 350, w: 260, lines: 3 },
+  { x: 1540, y: 800, w: 280, lines: 4 },
+  { x: 700, y: 50, w: 240, lines: 2 },
+  { x: 750, y: 920, w: 300, lines: 3 },
+];
+
+// ============================================================
 // COMPONENTS
 // ============================================================
 
@@ -139,6 +174,26 @@ const ManiculeLogo: React.FC<{ size?: number; color?: string }> = ({ size = 48, 
     <path d="M8 36L8 12L24 24L8 36Z" fill={color} opacity={0.5} />
     <path d="M20 36L20 12L36 24L20 36Z" fill={color} />
   </svg>
+);
+
+const EditorCursor: React.FC<{ name: string; color: string; x: number; y: number; opacity: number; scale?: number }> = ({ name, color, x, y, opacity, scale = 1 }) => (
+  <div style={{ position: "absolute", left: x, top: y, opacity, pointerEvents: "none", zIndex: 50, transform: `scale(${scale})`, transformOrigin: "top left" }}>
+    <svg width="20" height="26" viewBox="0 0 16 20" fill="none"><path d="M0 0L16 12L8 12L12 20L8 18L4 12L0 16V0Z" fill={color} /></svg>
+    <div style={{ position: "absolute", left: 18, top: 18, backgroundColor: color, color: "white", fontSize: 13, fontWeight: 600, padding: "3px 10px", borderRadius: 5, whiteSpace: "nowrap", fontFamily: MONO }}>{name}</div>
+  </div>
+);
+
+const PlaceholderTextBlock: React.FC<{ x: number; y: number; w: number; lines: number; opacity: number }> = ({ x, y, w, lines, opacity }) => (
+  <div style={{ position: "absolute", left: x, top: y, opacity, display: "flex", flexDirection: "column", gap: 6 }}>
+    {Array.from({ length: lines }).map((_, i) => (
+      <div key={i} style={{
+        width: i === lines - 1 ? w * 0.6 : w - (((i * 17 + 7) % 40)),
+        height: 8,
+        borderRadius: 4,
+        background: `linear-gradient(90deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 100%)`,
+      }} />
+    ))}
+  </div>
 );
 
 const PostCard: React.FC<{ post: Post }> = ({ post }) => {
@@ -205,6 +260,7 @@ export const ManiculePromo: React.FC<{
   scene4Dur?: number;
   introY?: number;
   taglineY?: number;
+  cursorScale?: number;
 }> = ({
   wallBaseOpacity = DEFAULT_WALL_BASE_OPACITY,
   scene1Dur = 225,
@@ -212,6 +268,7 @@ export const ManiculePromo: React.FC<{
   scene4Dur = 250,
   introY = 300,
   taglineY = 510,
+  cursorScale = 1.5,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -386,17 +443,55 @@ export const ManiculePromo: React.FC<{
       {s5Active && (
         <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", opacity: endFade }}>
           <CornerMarkers />
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: humansOp }}>
-            <div style={{ maxWidth: 1100, textAlign: "center" }}>
-              <div style={{ fontSize: 52, fontWeight: 600, color: C.white, lineHeight: 1.15, letterSpacing: -2 }}>humans in the loop.<br />because docs shouldn&apos;t sound<br />like <span style={{ color: C.orange }}>AI-generated bullshit.</span></div>
+          <div style={{ position: "absolute", inset: 0, opacity: humansOp }}>
+            {/* Placeholder text blocks — shimmering bars around edges */}
+            {TEXT_BARS.map((bar, i) => (
+              <PlaceholderTextBlock key={i} x={bar.x} y={bar.y} w={bar.w} lines={bar.lines} opacity={humansOp * 0.5} />
+            ))}
+            {/* Editor cursors — wandering around the edges */}
+            {EDITORS.map((editor, i) => {
+              const path = CURSOR_PATHS[i];
+              const rel = frame - s5Start - 10;
+              const xs = path.map(p => p[1]);
+              const ys = path.map(p => p[2]);
+              const ts = path.map(p => p[0]);
+              const cx = interpolate(rel, ts, xs, { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+              const cy = interpolate(rel, ts, ys, { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+              const cursorOp = interpolate(rel, [i * 3, i * 3 + 8, 58, 65], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+              return <EditorCursor key={editor.name} name={editor.name} color={editor.color} x={cx} y={cy} opacity={cursorOp * humansOp} scale={cursorScale} />;
+            })}
+            {/* Center text */}
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ maxWidth: 1100, textAlign: "center" }}>
+                <div style={{ fontSize: 52, fontWeight: 600, color: C.white, lineHeight: 1.15, letterSpacing: -2 }}>humans in the loop.<br />because docs shouldn&apos;t sound<br />like <span style={{ color: C.orange }}>AI-generated bullshit.</span></div>
+              </div>
             </div>
           </div>
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 28, opacity: fastOp }}>
-            <div style={{ fontSize: 56, fontWeight: 600, color: C.white, letterSpacing: -2 }}>and we&apos;re still the fastest.</div>
-            <div style={{ width: 500, height: 8, backgroundColor: C.whiteA10, borderRadius: 4, overflow: "hidden" }}>
-              <div style={{ width: `${progFill * 100}%`, height: "100%", backgroundColor: C.orange, borderRadius: 4, boxShadow: progFill > 0 ? `0 0 16px ${C.orange}80` : "none" }} />
+          <div style={{ position: "absolute", inset: 0, opacity: fastOp, overflow: "hidden" }}>
+            {/* Speed lines — horizontal streaks shooting across */}
+            {[
+              { y: 280, h: 2, delay: 0, dur: 8, color: C.orange },
+              { y: 420, h: 3, delay: 3, dur: 6, color: C.orange },
+              { y: 620, h: 2, delay: 5, dur: 7, color: C.orange },
+              { y: 180, h: 1, delay: 2, dur: 10, color: C.whiteA30 },
+              { y: 750, h: 1, delay: 7, dur: 9, color: C.whiteA30 },
+              { y: 350, h: 2, delay: 10, dur: 6, color: C.whiteA30 },
+              { y: 500, h: 1, delay: 4, dur: 8, color: C.whiteA30 },
+              { y: 880, h: 2, delay: 8, dur: 7, color: C.orange },
+              { y: 100, h: 1, delay: 12, dur: 6, color: C.whiteA30 },
+              { y: 560, h: 3, delay: 6, dur: 5, color: C.orange },
+            ].map((line, i) => {
+              const rel = frame - (s5Start + 75);
+              const lineStart = line.delay;
+              const lineX = interpolate(rel, [lineStart, lineStart + line.dur], [-400, 2400], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.in(Easing.quad) });
+              const lineOp = interpolate(rel, [lineStart, lineStart + 2, lineStart + line.dur - 2, lineStart + line.dur], [0, 0.8, 0.8, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+              return <div key={i} style={{ position: "absolute", top: line.y, left: lineX, width: 300 + line.dur * 20, height: line.h, backgroundColor: line.color, opacity: lineOp, borderRadius: line.h, boxShadow: line.color === C.orange ? `0 0 8px ${C.orange}60` : "none" }} />;
+            })}
+            {/* Center text */}
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 24 }}>
+              <div style={{ fontSize: 56, fontWeight: 600, color: C.white, letterSpacing: -2, transform: `translateX(${interpolate(frame, [s5Start + 70, s5Start + 80], [-30, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.exp) })}px)` }}>and we&apos;re still the fastest.</div>
+              <div style={{ fontFamily: MONO, fontSize: 14, color: C.whiteA70, textTransform: "uppercase", letterSpacing: 3, opacity: interpolate(frame, [s5Start + 110, s5Start + 118], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) }}>AI AGENTS HANDLE THE SCALE. HUMANS HANDLE THE THINKING.</div>
             </div>
-            <div style={{ fontFamily: MONO, fontSize: 14, color: C.whiteA70, textTransform: "uppercase", letterSpacing: 3, opacity: progFill > 0.9 ? 1 : 0 }}>AI AGENTS HANDLE THE SCALE. HUMANS HANDLE THE THINKING.</div>
           </div>
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 20, opacity: ctaOp }}>
             <div style={{ fontSize: 48, fontWeight: 600, color: C.whiteA70, letterSpacing: -1 }}>sounds too good to be true?</div>

@@ -10,6 +10,7 @@ const schema = z.object({
   scene4Dur: z.number().min(60).default(250),
   introY: z.number().default(300),
   taglineY: z.number().default(510),
+  cursorScale: z.number().min(0.5).max(4).default(1.5),
 });
 
 export const RemotionRoot: React.FC = () => {
@@ -22,7 +23,7 @@ export const RemotionRoot: React.FC = () => {
       width={1920}
       height={1080}
       schema={schema}
-      defaultProps={{"wallBaseOpacity":1,"scene1Dur":225,"scene2Dur":120,"scene4Dur":250,"introY":445,"taglineY":665}}
+      defaultProps={{"wallBaseOpacity":1,"scene1Dur":225,"scene2Dur":120,"scene4Dur":250,"introY":445,"taglineY":665,"cursorScale":1.5}}
     />
   );
 };
